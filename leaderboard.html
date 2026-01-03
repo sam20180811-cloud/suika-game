@@ -6,48 +6,35 @@
   <title>全球排行榜 - 合成西瓜</title>
   <style>
     body { font-family: Arial, sans-serif; background: #764ba2; color: white; display: flex; justify-content: center; padding: 20px; }
-    .lb-container { background: white; color: #333; padding: 20px; border-radius: 15px; width: 100%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
-    h2 { text-align: center; color: #667eea; margin-bottom: 20px; }
-    .lb-item { display: flex; justify-content: space-between; padding: 12px; border-bottom: 1px solid #eee; font-size: 1.1em; }
-    .btn-back { display: block; text-align: center; margin-top: 25px; padding: 12px; background: #667eea; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; }
-    .loading { text-align: center; padding: 20px; color: #888; }
+    .lb-container { background: white; color: #333; padding: 20px; border-radius: 15px; width: 100%; max-width: 400px; }
+    h2 { text-align: center; color: #667eea; }
+    .lb-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; }
+    .btn-back { display: block; text-align: center; margin-top: 20px; padding: 10px; background: #667eea; color: white; text-decoration: none; border-radius: 8px; }
   </style>
 </head>
 <body>
   <div class="lb-container">
     <h2>🏆 全球排行榜</h2>
-    <div id="lbContent" class="loading">正在連線至伺服器...</div>
+    <div id="lbContent">載入中...</div>
     <a href="index.html" class="btn-back">返回遊戲</a>
   </div>
-
   <script>
-    // 這是您的 API 網址
-    const API_URL = "https://script.google.com/macros/s/AKfycbywXhhgL-HKpir9nrWZ2JXTy6mzy2a2aqJoUvss8z-LTQTmTg8SdHz4jnq5uJUCXq9lEQ/exec";
-
-    fetch(API_URL + "?action=getLeaderboard")
-      .then(response => {
-        if (!response.ok) throw new Error('網路回應錯誤');
-        return response.json();
-      })
-      .then(result => {
+    // 這裡請換成您的 Google Script API 網址
+    const API_URL = "https://script.google.com/macros/s/您的ID/exec";
+    
+    fetch(`${API_URL}?action=getLeaderboard`)
+      .then(res => res.json())
+      .then(res => {
         const content = document.getElementById('lbContent');
-        // 判斷資料結構，相容於 result.data 或直接是陣列
-        const list = result.data || result;
-        
-        if (Array.isArray(list) && list.length > 0) {
-          content.innerHTML = list.map((item, i) => `
+        if (res.data && res.data.length > 0) {
+          content.innerHTML = res.data.map((item, i) => `
             <div class="lb-item">
-              <span>#${i+1} ${item.playerName || '無名氏'}</span>
-              <strong>${item.score || 0}</strong>
+              <span>#${i+1} ${item.playerName}</span>
+              <strong>${item.score}</strong>
             </div>`).join('');
-          content.className = ""; // 移除 loading 樣式
         } else {
-          content.innerHTML = "目前尚無玩家紀錄";
+          content.innerHTML = "目前尚無紀錄";
         }
-      })
-      .catch(error => {
-        console.error("Error:", error);
-        document.getElementById('lbContent').innerHTML = "資料讀取失敗，請確認 API 權限或稍後再試";
       });
   </script>
 </body>
