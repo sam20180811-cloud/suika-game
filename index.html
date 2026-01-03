@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>合成西瓜 - GitHub 版</title>
+  <style>
+    /* CSS 樣式 (包含遊戲、排行榜 Modal) */
+    * { margin: 0; padding: 0; box-sizing: border-box; touch-action: manipulation; }
+    body {
+      font-family: 'Arial', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex; justify-content: center; align-items: center;
+      min-height: 100vh; padding: 10px;
+    }
+    .game-container {
+      background: white; border-radius: 20px; padding: 15px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3); width: 100%; max-width: 360px;
+      position: relative; overflow: hidden;
+    }
+    h1 { text-align: center; color: #667eea; margin-bottom: 10px; font-size: 1.5em; }
+
+    .evolution-chain {
+      display: flex; justify-content: flex-start; align-items: center;
+      background: #f8f9fa; border-radius: 8px; padding: 5px;
+      margin-bottom: 10px; border: 1px solid #eee; 
+      overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch;
+    }
+    .evo-item { font-size: 1em; display: inline-flex; align-items: center; }
+    .evo-arrow { font-size: 0.5em; color: #ccc; margin: 0 2px; }
+
+    .header-info {
+      display: grid; grid-template-columns: 1fr 1fr 60px; gap: 5px;
+      margin-bottom: 10px; align-items: center;
+    }
+    .info-box { background: #f0f0f0; border-radius: 8px; padding: 5px 10px; text-align: center; }
+    .info-label { font-size: 0.6em; color: #666; display: block; }
+    .info-value { font-size: 1em; font-weight: bold; color: #667eea; }
+
+    .next-preview-mini {
+      border: 2px solid #667eea; border-radius: 8px; background: #fff;
+      height: 50px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    }
+    #nextEmoji { font-size: 1.5em; line-height: 1; }
+
+    #gameCanvas { 
+      border: 3px solid #667eea; border-radius: 12px; 
+      display: block; margin: 0 auto 10px; 
+      background: #fafafa; cursor: crosshair; 
+      width: 100%; height: auto; 
+    }
+    
+    .controls { display: flex; gap: 8px; }
+    button { 
+      flex: 1; padding: 10px; border: none; border-radius: 8px; 
+      cursor: pointer; font-weight: bold; transition: 0.3s; 
+      text-align: center; font-size: 0.9em; 
+    }
+    .btn-primary { background: #667eea; color: white; }
+    .btn-secondary { background: #48bb78; color: white; }
+    
+    #gameOver { 
+      display: none; text-align: center; padding: 20px; background: white; 
+      border-radius: 15px; position: absolute; top: 50%; left: 50%; 
+      transform: translate(-50%, -50%); width: 85%; border: 3px solid #667eea; 
+      z-index: 20; box-shadow: 0 0 40px rgba(0,0,0,0.4); 
+    }
+
+    /* 排行榜 Modal 樣式 */
+    #leaderboardModal {
+      display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: white; z-index: 30; padding: 20px; flex-direction: column;
+    }
+    .lb-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .lb-close { font-size: 1.5em; cursor: pointer; color: #666; }
+    .lb-list { flex: 1; overflow-y: auto; }
+    .lb-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; }
+    .lb-rank { width: 30px; font-weight: bold; color: #667eea; }
+    .loading { text-align: center; color: #999; margin-top: 20px; }
+  </style>
+</head>
+<body>
+
+  <div class="game-container">
+    <h1>🍉 合成西瓜</h1>
+    
+    <div class="evolution-chain" id="evoChain"></div>
+
+    <div class="header-info">
+      <div class="info-box">
+        <span class="info-label">SCORE</span>
+        <span class="info-value" id="score">0</span>
+      </div>
+      <div class="info-box">
+        <span class="info-label">MAX</span>
+        <span class="info-value" id="maxFruit">🍒</span>
+      </div>
+      <div class="next-preview-mini">
+        <span style="font-size:0.5em; color:#666; margin-bottom:2px;">NEXT</span>
+        <div id="nextEmoji">❓</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 10px;">
+      <input type="text" id="playerName" placeholder="請輸入玩家名字" style="width:100%; padding:8px; border-radius:5px; border:1px solid #ddd; font-size: 0.9em;">
+    </div>
+
+    <canvas id="gameCanvas" width="320" height="450"></canvas>
+
+    <div class="controls">
+      <button class="btn-primary" onclick="startGame()">開始遊戲</button>
+      <button class="btn-secondary" onclick="showLeaderboard()">🏆 排行榜</button>
+    </div>
+
+    <div id="gameOver">
+      <h2>遊戲結束！</h2>
+      <p style="margin: 10px 0;">得分: <strong id="finalScore" style="font-size: 1.5em; color: #667eea;">0</strong></p>
+      <button class="btn-primary" onclick="startGame()" style="width:100%">再玩一次</button>
+    </div>
+
+    <div id="leaderboardModal">
+      <div class="lb-header">
+        <h2>全球排行榜</h2>
+        <span class="lb-close" onclick="closeLeaderboard()">✖</span>
+      </div>
+      <div id="lbContent" class="lb-list">
+        <div class="loading">載入中...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ⚠️ 請將下方的網址替換成您的 Google Apps Script 部署網址 ⚠️
+    const API_URL = "https://script.google.com/macros/s/AKfycbywXhhgL-HKpir9nrWZ2JXTy6mzY2a2aqJoUvss8z-LTQTmTg8SdHz4jnq5uJUCXq9lEQ/exec";
+
+    // --- 物理引擎與遊戲邏輯 ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    const fruitConfigs = [
+      { name: '櫻桃', emoji: '🍒', radius: 15, score: 1, color: '#ff4d4d', mass: 1 },
+      { name: '草莓', emoji: '🍓', radius: 22, score: 3, color: '#ff7675', mass: 3 },
+      { name: '葡萄', emoji: '🍇', radius: 28, score: 6, color: '#a29bfe', mass: 6 },
+      { name: '橘子', emoji: '🍊', radius: 35, score: 10, color: '#fdcb6e', mass: 12 },
+      { name: '檸檬', emoji: '🍋', radius: 40, score: 15, color: '#ffeaa7', mass: 20 },
+      { name: '蘋果', emoji: '🍎', radius: 48, score: 21, color: '#d63031', mass: 35 },
+      { name: '桃子', emoji: '🍑', radius: 55, score: 28, color: '#ffadad', mass: 55 },
+      { name: '鳳梨', emoji: '🍍', radius: 62, score: 36, color: '#f9ca24', mass: 85 },
+      { name: '哈密瓜', emoji: '🍈', radius: 70, score: 45, color: '#55efc4', mass: 120 },
+      { name: '西瓜', emoji: '🍉', radius: 82, score: 55, color: '#26de81', mass: 200 }
+    ];
+
+    function initEvoChain() {
+      const container = document.getElementById('evoChain');
+      container.innerHTML = fruitConfigs.map((f, i) => 
+        `<div class="evo-item">${f.emoji}${i < fruitConfigs.length - 1 ? '<span class="evo-arrow">➔</span>' : ''}</div>`
+      ).join('');
+    }
+    initEvoChain();
+
+    let state = { running: false, score: 0, fruits: [], currentFruit: null, nextLevel: 0, mouseX: 160, maxLevel: 0 };
+
+    function startGame() {
+      const name = document.getElementById('playerName').value.trim();
+      if (!name) return alert('請輸入玩家名字！');
+      state = { running: true, score: 0, fruits: [], currentFruit: null, nextLevel: Math.floor(Math.random() * 3), mouseX: 160, maxLevel: 0 };
+      document.getElementById('gameOver').style.display = 'none';
+      document.getElementById('score').innerText = '0';
+      document.getElementById('maxFruit').innerText = '🍒';
+      spawnFruit();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function spawnFruit() {
+      state.currentFruit = { level: state.nextLevel, x: state.mouseX, y: 40, vx: 0, vy: 0, dropped: false };
+      state.nextLevel = Math.floor(Math.random() * 3);
+      document.getElementById('nextEmoji').innerText = fruitConfigs[state.nextLevel].emoji;
+    }
+
+    function handleMove(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const scaleX = canvas.width / rect.width;
+      state.mouseX = (clientX - rect.left) * scaleX;
+      if (state.currentFruit && !state.currentFruit.dropped) {
+        const r = fruitConfigs[state.currentFruit.level].radius;
+        state.currentFruit.x = Math.max(r, Math.min(canvas.width - r, state.mouseX));
+      }
+    }
+
+    canvas.addEventListener('mousemove', handleMove);
+    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); handleMove(e); }, { passive: false });
+    
+    const dropAction = () => {
+      if (!state.running || !state.currentFruit || state.currentFruit.dropped) return;
+      state.currentFruit.dropped = true;
+      state.fruits.push(state.currentFruit);
+      setTimeout(spawnFruit, 600);
+    };
+
+    canvas.addEventListener('mousedown', dropAction);
+    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); dropAction(); }, { passive: false });
+
+    function applyPhysics(dt) {
+      state.fruits.forEach(f => { f.vy += 0.5 * dt; f.x += f.vx * dt; f.y += f.vy * dt; });
+      for (let i = 0; i < state.fruits.length; i++) {
+        for (let j = i + 1; j < state.fruits.length; j++) {
+          const f1 = state.fruits[i], f2 = state.fruits[j];
+          const c1 = fruitConfigs[f1.level], c2 = fruitConfigs[f2.level];
+          const dx = f2.x - f1.x, dy = f2.y - f1.y, dist = Math.sqrt(dx*dx + dy*dy), minD = c1.radius + c2.radius;
+          if (dist < minD) {
+            if (f1.level === f2.level && f1.level < fruitConfigs.length - 1) {
+              const newL = f1.level + 1;
+              const newF = { level: newL, x: (f1.x+f2.x)/2, y: (f1.y+f2.y)/2, vx: 0, vy: 0, dropped: true };
+              state.fruits.splice(j, 1); state.fruits.splice(i, 1);
+              state.fruits.push(newF);
+              state.score += fruitConfigs[newL].score;
+              document.getElementById('score').innerText = state.score;
+              if(newL > state.maxLevel){ state.maxLevel = newL; document.getElementById('maxFruit').innerText = fruitConfigs[newL].emoji; }
+              return;
+            }
+            const overlap = minD - dist, nx = dx/dist, ny = dy/dist, mSum = c1.mass + c2.mass;
+            f1.x -= nx * overlap * (c2.mass/mSum); f1.y -= ny * overlap * (c2.mass/mSum);
+            f2.x += nx * overlap * (c1.mass/mSum); f2.y += ny * overlap * (c1.mass/mSum);
+            const rVx = f2.vx - f1.vx, rVy = f2.vy - f1.vy, vNorm = rVx*nx + rVy*ny;
+            if (vNorm > 0) continue;
+            const imp = -(1.1) * vNorm / (1/c1.mass + 1/c2.mass);
+            f1.vx -= (imp/c1.mass)*nx; f1.vy -= (imp/c1.mass)*ny; f2.vx += (imp/c2.mass)*nx; f2.vy += (imp/c2.mass)*ny;
+          }
+        }
+      }
+      state.fruits.forEach(f => {
+        const r = fruitConfigs[f.level].radius;
+        if (f.y + r > canvas.height) { f.y = canvas.height - r; f.vy *= -0.1; f.vx *= 0.95; }
+        if (f.x - r < 0) { f.x = r; f.vx *= -0.2; }
+        if (f.x + r > canvas.width) { f.x = canvas.width - r; f.vx *= -0.2; }
+      });
+    }
+
+    function update() {
+      const steps = 8;
+      for(let s=0; s<steps; s++) applyPhysics(1/steps);
+      if (state.fruits.some(f => f.y < 85 && Math.abs(f.vy) < 0.2 && f.dropped)) {
+        state.running = false; endGame();
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = '#ff7675'; ctx.setLineDash([5, 5]);
+      ctx.beginPath(); ctx.moveTo(0, 80); ctx.lineTo(canvas.width, 80); ctx.stroke();
+      ctx.setLineDash([]);
+      const list = state.currentFruit && !state.currentFruit.dropped ? [...state.fruits, state.currentFruit] : state.fruits;
+      list.forEach(f => {
+        const c = fruitConfigs[f.level];
+        ctx.beginPath(); ctx.arc(f.x, f.y, c.radius, 0, Math.PI*2);
+        let g = ctx.createRadialGradient(f.x-5, f.y-5, 0, f.x, f.y, c.radius);
+        g.addColorStop(0, '#fff'); g.addColorStop(1, c.color);
+        ctx.fillStyle = g; ctx.fill();
+        ctx.font = `${c.radius * 1.1}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(c.emoji, f.x, f.y);
+      });
+    }
+
+    function gameLoop() { if (state.running) { update(); draw(); requestAnimationFrame(gameLoop); } }
+
+    // --- API 串接邏輯 (取代原本的 google.script.run) ---
+    
+    function endGame() {
+      document.getElementById('gameOver').style.display = 'block';
+      document.getElementById('finalScore').innerText = state.score;
+      
+      const name = document.getElementById('playerName').value;
+      const score = state.score;
+      const maxFruit = fruitConfigs[state.maxLevel].name;
+
+      // 使用 fetch 發送分數到 Google Sheet
+      const url = `${API_URL}?name=${encodeURIComponent(name)}&score=${score}&maxFruit=${encodeURIComponent(maxFruit)}`;
+      
+      fetch(url, { method: 'POST' })
+        .then(res => res.json())
+        .then(data => console.log('Score saved:', data))
+        .catch(err => console.error('Error saving score:', err));
+    }
+
+    function showLeaderboard() {
+      const modal = document.getElementById('leaderboardModal');
+      const content = document.getElementById('lbContent');
+      modal.style.display = 'flex';
+      content.innerHTML = '<div class="loading">載入中...</div>';
+
+      fetch(`${API_URL}?action=getLeaderboard`)
+        .then(res => res.json())
+        .then(res => {
+          if (res.data && res.data.length > 0) {
+            let html = '';
+            res.data.forEach((item, i) => {
+              html += `
+                <div class="lb-item">
+                  <span class="lb-rank">#${i+1}</span>
+                  <span>${item.playerName}</span>
+                  <span style="font-weight:bold">${item.score}</span>
+                </div>`;
+            });
+            content.innerHTML = html;
+          } else {
+            content.innerHTML = '<div class="loading">目前沒有紀錄</div>';
+          }
+        })
+        .catch(err => {
+          content.innerHTML = '<div class="loading">載入失敗，請稍後再試</div>';
+        });
+    }
+
+    function closeLeaderboard() {
+      document.getElementById('leaderboardModal').style.display = 'none';
+    }
+  </script>
+</body>
+</html>
