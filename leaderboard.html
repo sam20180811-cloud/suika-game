@@ -20,25 +20,24 @@
   </div>
   <script>
 <script>
-  const API_URL = "https://script.google.com/macros/s/AKfycbywXhhgL-HKpir9nrWZ2JXTy6mzY2a2aqJoUvss8z-LTQTmTg8SdHz4jnq5uJUCXq9lEQ/exec";
+  const API_URL = "https://script.google.com/macros/s/AKfycbywXhhgL-HKpir9nrWZ2JXTy6mzy2a2aqJoUvss8z-LTQTmTg8SdHz4jnq5uJUCXq9lEQ/exec";
 
   fetch(API_URL + "?action=getLeaderboard")
     .then(res => res.json())
     .then(res => {
       const content = document.getElementById('lbContent');
-      if (res && res.length > 0) { 
-        content.innerHTML = res.map((item, i) => `
+      if (res.data && res.data.length > 0) {
+        content.innerHTML = res.data.map((item, i) => `
           <div class="lb-item">
             <span>#${i+1} ${item.playerName}</span>
             <strong>${item.score}</strong>
           </div>`).join('');
       } else {
-        content.innerHTML = "目前尚無資料";
+        content.innerHTML = "目前尚無紀錄";
       }
     })
     .catch(err => {
-      console.error(err);
-      document.getElementById('lbContent').innerHTML = "資料讀取失敗";
+      document.getElementById('lbContent').innerHTML = "讀取失敗，請重新整理";
     });
 </script>
 </body>
