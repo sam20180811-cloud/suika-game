@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>合成西瓜 - GitHub 版</title>
   <style>
-    /* CSS 樣式 (包含遊戲、排行榜 Modal) */
     * { margin: 0; padding: 0; box-sizing: border-box; touch-action: manipulation; }
     body {
       font-family: 'Arial', sans-serif;
@@ -57,7 +56,9 @@
       text-align: center; font-size: 0.9em; 
     }
     .btn-primary { background: #667eea; color: white; }
+    .btn-primary:hover { background: #5568d3; }
     .btn-secondary { background: #48bb78; color: white; }
+    .btn-secondary:hover { background: #38a169; }
     
     #gameOver { 
       display: none; text-align: center; padding: 20px; background: white; 
@@ -65,18 +66,55 @@
       transform: translate(-50%, -50%); width: 85%; border: 3px solid #667eea; 
       z-index: 20; box-shadow: 0 0 40px rgba(0,0,0,0.4); 
     }
+    #gameOver h2 { color: #667eea; margin-bottom: 15px; }
 
     /* 排行榜 Modal 樣式 */
     #leaderboardModal {
       display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       background: white; z-index: 30; padding: 20px; flex-direction: column;
+      border-radius: 20px;
     }
-    .lb-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-    .lb-close { font-size: 1.5em; cursor: pointer; color: #666; }
+    .lb-header { 
+      display: flex; justify-content: space-between; align-items: center; 
+      margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #667eea;
+    }
+    .lb-header h2 { color: #667eea; }
+    .lb-close { 
+      font-size: 1.8em; cursor: pointer; color: #666; 
+      width: 35px; height: 35px; display: flex; align-items: center; 
+      justify-content: center; border-radius: 50%; transition: 0.3s;
+    }
+    .lb-close:hover { background: #f0f0f0; }
     .lb-list { flex: 1; overflow-y: auto; }
-    .lb-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; }
-    .lb-rank { width: 30px; font-weight: bold; color: #667eea; }
+    .lb-item { 
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px; border-bottom: 1px solid #eee; transition: 0.2s;
+    }
+    .lb-item:hover { background: #f8f9fa; }
+    .lb-rank { 
+      min-width: 40px; font-weight: bold; color: #667eea; font-size: 1.1em;
+    }
+    .lb-rank.top3 { font-size: 1.3em; }
+    .lb-name { flex: 1; margin: 0 10px; }
+    .lb-score { font-weight: bold; color: #764ba2; font-size: 1.1em; }
+    .lb-fruit { margin-left: 5px; }
     .loading { text-align: center; color: #999; margin-top: 20px; }
+    .error-msg { 
+      text-align: center; padding: 15px; color: #e74c3c; 
+      background: #fee; border-radius: 8px; margin: 10px 0; 
+    }
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      width: 40px; height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
@@ -102,35 +140,47 @@
     </div>
 
     <div style="margin-bottom: 10px;">
-      <input type="text" id="playerName" placeholder="請輸入玩家名字" style="width:100%; padding:8px; border-radius:5px; border:1px solid #ddd; font-size: 0.9em;">
+      <input type="text" id="playerName" placeholder="請輸入玩家名字" 
+        style="width:100%; padding:8px; border-radius:5px; border:1px solid #ddd; font-size: 0.9em;">
     </div>
 
     <canvas id="gameCanvas" width="320" height="450"></canvas>
 
     <div class="controls">
       <button class="btn-primary" onclick="startGame()">開始遊戲</button>
-     <a href="leaderboard.html" class="btn-link btn-secondary" style="text-decoration:none;">🏆 排行榜</a>
+      <button class="btn-secondary" onclick="showLeaderboard()">🏆 排行榜</button>
     </div>
 
     <div id="gameOver">
-      <h2>遊戲結束！</h2>
-      <p style="margin: 10px 0;">得分: <strong id="finalScore" style="font-size: 1.5em; color: #667eea;">0</strong></p>
-      <button class="btn-primary" onclick="startGame()" style="width:100%">再玩一次</button>
+      <h2>🎮 遊戲結束！</h2>
+      <p style="margin: 15px 0;">
+        得分: <strong id="finalScore" style="font-size: 1.8em; color: #667eea;">0</strong>
+      </p>
+      <p style="margin: 10px 0; color: #666;">
+        最大水果: <span id="finalMaxFruit" style="font-size: 1.5em;">🍒</span>
+      </p>
+      <div style="display: flex; gap: 8px; margin-top: 15px;">
+        <button class="btn-primary" onclick="startGame()" style="flex:1">再玩一次</button>
+        <button class="btn-secondary" onclick="showLeaderboard()" style="flex:1">查看排行榜</button>
+      </div>
     </div>
 
     <div id="leaderboardModal">
       <div class="lb-header">
-        <h2>全球排行榜</h2>
+        <h2>🏆 全球排行榜</h2>
         <span class="lb-close" onclick="closeLeaderboard()">✖</span>
       </div>
       <div id="lbContent" class="lb-list">
-        <div class="loading">載入中...</div>
+        <div class="loading">
+          <div class="spinner"></div>
+          載入中...
+        </div>
       </div>
     </div>
   </div>
 
   <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbywXhhgL-HKpir9nrWZ2JXTy6mzY2a2aqJoUvss8z-LTQTmTg8SdHz4jnq5uJUCXq9lEQ/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbywXhhgL-HKpir9nrWZ2JXTy6mzy2a2aqJoUvss8z-LTQTmTg8SdHz4jnq5uJUCXq9lEQ/exec";
 
     // --- 物理引擎與遊戲邏輯 ---
     const canvas = document.getElementById('gameCanvas');
@@ -161,7 +211,11 @@
 
     function startGame() {
       const name = document.getElementById('playerName').value.trim();
-      if (!name) return alert('請輸入玩家名字！');
+      if (!name) {
+        alert('請輸入玩家名字！');
+        document.getElementById('playerName').focus();
+        return;
+      }
       state = { running: true, score: 0, fruits: [], currentFruit: null, nextLevel: Math.floor(Math.random() * 3), mouseX: 160, maxLevel: 0 };
       document.getElementById('gameOver').style.display = 'none';
       document.getElementById('score').innerText = '0';
@@ -215,7 +269,10 @@
               state.fruits.push(newF);
               state.score += fruitConfigs[newL].score;
               document.getElementById('score').innerText = state.score;
-              if(newL > state.maxLevel){ state.maxLevel = newL; document.getElementById('maxFruit').innerText = fruitConfigs[newL].emoji; }
+              if(newL > state.maxLevel){ 
+                state.maxLevel = newL; 
+                document.getElementById('maxFruit').innerText = fruitConfigs[newL].emoji; 
+              }
               return;
             }
             const overlap = minD - dist, nx = dx/dist, ny = dy/dist, mSum = c1.mass + c2.mass;
@@ -263,13 +320,14 @@
 
     function gameLoop() { if (state.running) { update(); draw(); requestAnimationFrame(gameLoop); } }
 
-    // --- API 串接邏輯 (取代原本的 google.script.run) ---
+    // --- API 串接邏輯 ---
     
     function endGame() {
       document.getElementById('gameOver').style.display = 'block';
       document.getElementById('finalScore').innerText = state.score;
+      document.getElementById('finalMaxFruit').innerText = fruitConfigs[state.maxLevel].emoji;
       
-      const name = document.getElementById('playerName').value;
+      const name = document.getElementById('playerName').value.trim();
       const score = state.score;
       const maxFruit = fruitConfigs[state.maxLevel].name;
 
@@ -278,43 +336,88 @@
       
       fetch(url, { method: 'POST' })
         .then(res => res.json())
-        .then(data => console.log('Score saved:', data))
-        .catch(err => console.error('Error saving score:', err));
+        .then(data => {
+          console.log('✅ 分數已儲存:', data);
+        })
+        .catch(err => {
+          console.error('❌ 儲存分數失敗:', err);
+        });
+    }
+
+    function getMedal(rank) {
+      if (rank === 1) return '🥇';
+      if (rank === 2) return '🥈';
+      if (rank === 3) return '🥉';
+      return `#${rank}`;
     }
 
     function showLeaderboard() {
       const modal = document.getElementById('leaderboardModal');
       const content = document.getElementById('lbContent');
       modal.style.display = 'flex';
-      content.innerHTML = '<div class="loading">載入中...</div>';
+      content.innerHTML = '<div class="loading"><div class="spinner"></div>載入中...</div>';
 
-      fetch(`${API_URL}?action=getLeaderboard`)
-        .then(res => res.json())
+      fetch(`${API_URL}?action=getLeaderboard`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      })
         .then(res => {
-          if (res.data && res.data.length > 0) {
+          if (!res.ok) throw new Error(`HTTP 錯誤! 狀態: ${res.status}`);
+          return res.json();
+        })
+        .then(result => {
+          console.log('📊 排行榜資料:', result);
+          
+          // 處理不同的回應格式
+          let list = [];
+          if (result.data && Array.isArray(result.data)) {
+            list = result.data;
+          } else if (Array.isArray(result)) {
+            list = result;
+          } else if (result.result && Array.isArray(result.result)) {
+            list = result.result;
+          }
+          
+          if (list.length > 0) {
             let html = '';
-            res.data.forEach((item, i) => {
+            list.forEach((item, i) => {
+              const rank = i + 1;
+              const medal = getMedal(rank);
               html += `
                 <div class="lb-item">
-                  <span class="lb-rank">#${i+1}</span>
-                  <span>${item.playerName}</span>
-                  <span style="font-weight:bold">${item.score}</span>
+                  <span class="lb-rank ${rank <= 3 ? 'top3' : ''}">${medal}</span>
+                  <span class="lb-name">${item.playerName || item.name || '無名氏'}</span>
+                  <span class="lb-score">${item.score || 0}</span>
+                  <span class="lb-fruit">${item.maxFruit || '🍒'}</span>
                 </div>`;
             });
             content.innerHTML = html;
           } else {
-            content.innerHTML = '<div class="loading">目前沒有紀錄</div>';
+            content.innerHTML = '<div class="loading">目前沒有紀錄<br>快來成為第一名吧！🎮</div>';
           }
         })
         .catch(err => {
-          content.innerHTML = '<div class="loading">載入失敗，請稍後再試</div>';
+          console.error('❌ 載入排行榜失敗:', err);
+          content.innerHTML = `
+            <div class="error-msg">
+              <strong>載入失敗</strong><br>
+              ${err.message}<br><br>
+              <button onclick="showLeaderboard()" class="btn-primary" 
+                style="padding: 8px 16px; margin-top: 10px;">
+                重新載入
+              </button>
+            </div>`;
         });
     }
 
     function closeLeaderboard() {
       document.getElementById('leaderboardModal').style.display = 'none';
     }
+
+    // 鍵盤支援 (ESC 關閉排行榜)
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeLeaderboard();
+    });
   </script>
 </body>
 </html>
-
