@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>合成西瓜 - 排行榜</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; justify-content: center; padding: 20px; min-height: 100vh; }
+    .container { background: white; border-radius: 20px; padding: 30px; width: 100%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; }
+    h1 { text-align: center; color: #667eea; margin-bottom: 20px; }
+    .search-box { display: flex; gap: 10px; margin-bottom: 20px; }
+    input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
+    .btn { padding: 10px 15px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+    .btn-back { display: block; text-align: center; margin-top: 25px; color: #667eea; text-decoration: none; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🏆 全球排行榜</h1>
+    <div class="search-box">
+      <input type="text" id="si" placeholder="搜尋玩家...">
+      <button class="btn" onclick="search()">搜尋</button>
+    </div>
+    <div id="status" style="text-align:center">載入中...</div>
+    <table id="table" style="display:none">
+      <thead><tr><th>排名</th><th>玩家</th><th>分數</th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <a href="<?= scriptUrl ?>?page=game" target="_top" class="btn-back">⬅ 返回遊戲</a>
+  </div>
+  <script>
+    window.onload = () => google.script.run.withSuccessHandler(render).getLeaderboard();
+    function search() {
+      const q = document.getElementById('si').value;
+      google.script.run.withSuccessHandler(render).searchLeaderboard(q);
+    }
+    function render(res) {
+      document.getElementById('status').style.display = 'none';
+      const tbody = document.getElementById('tbody');
+      tbody.innerHTML = '';
+      if(res.data.length > 0) {
+        document.getElementById('table').style.display = 'table';
+        res.data.forEach((item, i) => {
+          tbody.innerHTML += `<tr><td>${i+1}</td><td>${item.playerName}</td><td>${item.score}</td></tr>`;
+        });
+      } else {
+        document.getElementById('status').innerText = '無紀錄';
+        document.getElementById('status').style.display = 'block';
+      }
+    }
+  </script>
+</body>
+</html>
