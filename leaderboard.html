@@ -5,186 +5,50 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>全球排行榜 - 合成西瓜</title>
   <style>
-    body { 
-      font-family: Arial, sans-serif; 
-      background: linear-gradient(135deg, #764ba2 0%, #667eea 100%); 
-      color: white; 
-      display: flex; 
-      justify-content: center; 
-      align-items: center;
-      min-height: 100vh;
-      padding: 20px; 
-      margin: 0;
-    }
-    .lb-container { 
-      background: white; 
-      color: #333; 
-      padding: 30px; 
-      border-radius: 15px; 
-      width: 100%; 
-      max-width: 450px; 
-      box-shadow: 0 10px 40px rgba(0,0,0,0.3); 
-    }
-    h2 { 
-      text-align: center; 
-      color: #667eea; 
-      margin-bottom: 25px; 
-      font-size: 1.8em;
-    }
-    .lb-item { 
-      display: flex; 
-      justify-content: space-between; 
-      align-items: center;
-      padding: 15px; 
-      border-bottom: 1px solid #eee; 
-      font-size: 1.1em;
-      transition: background 0.2s;
-    }
-    .lb-item:hover {
-      background: #f8f9fa;
-    }
-    .lb-item:last-child {
-      border-bottom: none;
-    }
-    .rank {
-      font-weight: bold;
-      color: #667eea;
-      min-width: 40px;
-    }
-    .rank.top3 {
-      font-size: 1.3em;
-    }
-    .player-name {
-      flex: 1;
-      margin: 0 15px;
-    }
-    .score {
-      font-weight: bold;
-      color: #764ba2;
-      font-size: 1.2em;
-    }
-    .btn-back { 
-      display: block; 
-      text-align: center; 
-      margin-top: 25px; 
-      padding: 14px; 
-      background: #667eea; 
-      color: white; 
-      text-decoration: none; 
-      border-radius: 8px; 
-      font-weight: bold;
-      transition: background 0.3s;
-    }
-    .btn-back:hover {
-      background: #5568d3;
-    }
-    .loading { 
-      text-align: center; 
-      padding: 30px; 
-      color: #888; 
-    }
-    .error-msg {
-      text-align: center;
-      padding: 20px;
-      color: #e74c3c;
-      background: #fee;
-      border-radius: 8px;
-      margin: 10px 0;
-    }
-    .spinner {
-      border: 3px solid #f3f3f3;
-      border-top: 3px solid #667eea;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      animation: spin 1s linear infinite;
-      margin: 20px auto;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
+    body { font-family: Arial, sans-serif; background: #764ba2; color: white; display: flex; justify-content: center; padding: 20px; }
+    .lb-container { background: white; color: #333; padding: 20px; border-radius: 15px; width: 100%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+    h2 { text-align: center; color: #667eea; margin-bottom: 20px; }
+    .lb-item { display: flex; justify-content: space-between; padding: 12px; border-bottom: 1px solid #eee; font-size: 1.1em; }
+    .btn-back { display: block; text-align: center; margin-top: 25px; padding: 12px; background: #667eea; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; }
+    .loading { text-align: center; padding: 20px; color: #888; }
   </style>
 </head>
 <body>
   <div class="lb-container">
     <h2>🏆 全球排行榜</h2>
-    <div id="lbContent" class="loading">
-      <div class="spinner"></div>
-      正在連線至伺服器...
-    </div>
+    <div id="lbContent" class="loading">正在連線至伺服器...</div>
     <a href="index.html" class="btn-back">返回遊戲</a>
   </div>
-  
+
   <script>
+    // 這是您的 API 網址
     const API_URL = "https://script.google.com/macros/s/AKfycbywXhhgL-HKpir9nrWZ2JXTy6mzy2a2aqJoUvss8z-LTQTmTg8SdHz4jnq5uJUCXq9lEQ/exec";
-    const content = document.getElementById('lbContent');
-    
-    // 獲取獎牌表情符號
-    function getMedal(rank) {
-      if (rank === 1) return '🥇';
-      if (rank === 2) return '🥈';
-      if (rank === 3) return '🥉';
-      return `#${rank}`;
-    }
-    
-    // 載入排行榜資料
-    async function loadLeaderboard() {
-      try {
-        const response = await fetch(API_URL + "?action=getLeaderboard", {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-          }
-        });
+
+    fetch(API_URL + "?action=getLeaderboard")
+      .then(response => {
+        if (!response.ok) throw new Error('網路回應錯誤');
+        return response.json();
+      })
+      .then(result => {
+        const content = document.getElementById('lbContent');
+        // 判斷資料結構，相容於 result.data 或直接是陣列
+        const list = result.data || result;
         
-        if (!response.ok) {
-          throw new Error(`HTTP 錯誤! 狀態碼: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        console.log('API 回應:', result); // 用於除錯
-        
-        // 處理不同的資料格式
-        let list = [];
-        if (result.data && Array.isArray(result.data)) {
-          list = result.data;
-        } else if (Array.isArray(result)) {
-          list = result;
-        } else if (result.result && Array.isArray(result.result)) {
-          list = result.result;
-        }
-        
-        if (list.length > 0) {
+        if (Array.isArray(list) && list.length > 0) {
           content.innerHTML = list.map((item, i) => `
             <div class="lb-item">
-              <span class="rank ${i < 3 ? 'top3' : ''}">${getMedal(i + 1)}</span>
-              <span class="player-name">${item.playerName || item.name || '無名氏'}</span>
-              <span class="score">${item.score || 0} 分</span>
-            </div>
-          `).join('');
+              <span>#${i+1} ${item.playerName || '無名氏'}</span>
+              <strong>${item.score || 0}</strong>
+            </div>`).join('');
+          content.className = ""; // 移除 loading 樣式
         } else {
-          content.innerHTML = '<div class="loading">目前尚無玩家紀錄<br>快來成為第一名吧！🎮</div>';
+          content.innerHTML = "目前尚無玩家紀錄";
         }
-        
-      } catch (error) {
-        console.error("載入錯誤:", error);
-        content.innerHTML = `
-          <div class="error-msg">
-            <strong>資料讀取失敗</strong><br>
-            ${error.message}<br><br>
-            請檢查：<br>
-            • API 網址是否正確<br>
-            • Google Apps Script 是否已部署<br>
-            • 是否有設定正確的存取權限<br><br>
-            <button onclick="loadLeaderboard()" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">重新載入</button>
-          </div>
-        `;
-      }
-    }
-    
-    // 頁面載入時執行
-    loadLeaderboard();
+      })
+      .catch(error => {
+        console.error("Error:", error);
+        document.getElementById('lbContent').innerHTML = "資料讀取失敗，請確認 API 權限或稍後再試";
+      });
   </script>
 </body>
 </html>
