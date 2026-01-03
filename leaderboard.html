@@ -24,7 +24,7 @@
  
     const API_URL = "https://script.google.com/macros/s/AKfycbywXhhgL-HKpir9nrWZ2JXTy6mzy2a2aqJoUvss8z-LTQTmTg8SdHz4jnq5uJUCXq9lEQ/exec";
 
-    ffetch(API_URL + "?action=getLeaderboard")
+    fetch(API_URL + "?action=getLeaderboard")
       .then(response => {
         if (!response.ok) throw new Error('網路回應錯誤');
         return response.json();
