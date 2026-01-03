@@ -68,7 +68,6 @@
     }
     #gameOver h2 { color: #667eea; margin-bottom: 15px; }
 
-    /* 排行榜 Modal 樣式 */
     #leaderboardModal {
       display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       background: white; z-index: 30; padding: 20px; flex-direction: column;
@@ -102,6 +101,7 @@
     .error-msg { 
       text-align: center; padding: 15px; color: #e74c3c; 
       background: #fee; border-radius: 8px; margin: 10px 0; 
+      font-size: 0.9em; line-height: 1.5;
     }
     .spinner {
       border: 3px solid #f3f3f3;
@@ -115,12 +115,21 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+    .offline-mode {
+      background: #fff3cd; color: #856404; padding: 8px;
+      border-radius: 5px; margin-bottom: 10px; font-size: 0.85em;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
 
   <div class="game-container">
     <h1>🍉 合成西瓜</h1>
+    
+    <div id="offlineNotice" class="offline-mode" style="display:none;">
+      ⚠️ 離線模式：分數將不會儲存
+    </div>
     
     <div class="evolution-chain" id="evoChain"></div>
 
@@ -180,9 +189,11 @@
   </div>
 
   <script>
+    // ⚠️ 請替換成你的 Google Apps Script URL
     const API_URL = "https://script.google.com/macros/s/AKfycbywXhhgL-HKpir9nrWZ2JXTy6mzy2a2aqJoUvss8z-LTQTmTg8SdHz4jnq5uJUCXq9lEQ/exec";
+    
+    let isOnlineMode = true;
 
-    // --- 物理引擎與遊戲邏輯 ---
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     
@@ -320,7 +331,7 @@
 
     function gameLoop() { if (state.running) { update(); draw(); requestAnimationFrame(gameLoop); } }
 
-    // --- API 串接邏輯 ---
+    // === API 串接 - 使用 JSONP 繞過 CORS ===
     
     function endGame() {
       document.getElementById('gameOver').style.display = 'block';
@@ -331,17 +342,17 @@
       const score = state.score;
       const maxFruit = fruitConfigs[state.maxLevel].name;
 
-      // 使用 fetch 發送分數到 Google Sheet
-      const url = `${API_URL}?name=${encodeURIComponent(name)}&score=${score}&maxFruit=${encodeURIComponent(maxFruit)}`;
+      // 使用 Image 標籤發送 GET 請求（繞過 CORS）
+      const img = new Image();
+      const url = `${API_URL}?name=${encodeURIComponent(name)}&score=${score}&maxFruit=${encodeURIComponent(maxFruit)}&t=${Date.now()}`;
       
-      fetch(url, { method: 'POST' })
-        .then(res => res.json())
-        .then(data => {
-          console.log('✅ 分數已儲存:', data);
-        })
-        .catch(err => {
-          console.error('❌ 儲存分數失敗:', err);
-        });
+      img.onload = () => console.log('✅ 分數已儲存');
+      img.onerror = () => {
+        console.warn('⚠️ 無法儲存分數到雲端');
+        isOnlineMode = false;
+        document.getElementById('offlineNotice').style.display = 'block';
+      };
+      img.src = url;
     }
 
     function getMedal(rank) {
@@ -357,25 +368,19 @@
       modal.style.display = 'flex';
       content.innerHTML = '<div class="loading"><div class="spinner"></div>載入中...</div>';
 
-      fetch(`${API_URL}?action=getLeaderboard`, {
-        method: 'GET',
-        headers: { 'Accept': 'application/json' }
-      })
-        .then(res => {
-          if (!res.ok) throw new Error(`HTTP 錯誤! 狀態: ${res.status}`);
-          return res.json();
-        })
-        .then(result => {
+      // 使用 JSONP 方式
+      const script = document.createElement('script');
+      const callbackName = 'leaderboardCallback' + Date.now();
+      
+      window[callbackName] = function(result) {
+        try {
           console.log('📊 排行榜資料:', result);
           
-          // 處理不同的回應格式
           let list = [];
-          if (result.data && Array.isArray(result.data)) {
+          if (result && result.data && Array.isArray(result.data)) {
             list = result.data;
           } else if (Array.isArray(result)) {
             list = result;
-          } else if (result.result && Array.isArray(result.result)) {
-            list = result.result;
           }
           
           if (list.length > 0) {
@@ -395,26 +400,45 @@
           } else {
             content.innerHTML = '<div class="loading">目前沒有紀錄<br>快來成為第一名吧！🎮</div>';
           }
-        })
-        .catch(err => {
-          console.error('❌ 載入排行榜失敗:', err);
-          content.innerHTML = `
-            <div class="error-msg">
-              <strong>載入失敗</strong><br>
-              ${err.message}<br><br>
-              <button onclick="showLeaderboard()" class="btn-primary" 
-                style="padding: 8px 16px; margin-top: 10px;">
-                重新載入
-              </button>
-            </div>`;
-        });
+        } catch (err) {
+          console.error('處理排行榜資料失敗:', err);
+          showLeaderboardError();
+        }
+        
+        delete window[callbackName];
+        document.body.removeChild(script);
+      };
+      
+      script.onerror = () => {
+        console.error('❌ 載入排行榜失敗');
+        showLeaderboardError();
+        delete window[callbackName];
+      };
+      
+      script.src = `${API_URL}?action=getLeaderboard&callback=${callbackName}&t=${Date.now()}`;
+      document.body.appendChild(script);
+    }
+
+    function showLeaderboardError() {
+      const content = document.getElementById('lbContent');
+      content.innerHTML = `
+        <div class="error-msg">
+          <strong>⚠️ 無法載入排行榜</strong><br><br>
+          可能原因：<br>
+          • Google Apps Script 未正確部署<br>
+          • 存取權限未設定為「所有人」<br>
+          • CORS 設定問題<br><br>
+          <button onclick="showLeaderboard()" class="btn-primary" 
+            style="padding: 8px 16px; margin-top: 10px; width: auto;">
+            🔄 重試
+          </button>
+        </div>`;
     }
 
     function closeLeaderboard() {
       document.getElementById('leaderboardModal').style.display = 'none';
     }
 
-    // 鍵盤支援 (ESC 關閉排行榜)
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') closeLeaderboard();
     });
