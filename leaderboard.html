@@ -20,7 +20,7 @@
   </div>
   <script>
 const API_URL = "https://script.google.com/macros/s/AKfycbywXhhgL-HKpir9nrWZ2JXTy6mzy2a2aqJoUvss8z-LTQTmTg8SdHz4jnq5uJUCXq9lEQ/exec";    
-    fetch(`${API_URL}?action=getLeaderboard`)
+    fetch(API_URL + "?action=getLeaderboard")
       .then(res => res.json())
       .then(res => {
         const content = document.getElementById('lbContent');
