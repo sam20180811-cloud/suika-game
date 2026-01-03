@@ -24,7 +24,7 @@
  
     const API_URL = "https://script.google.com/macros/s/AKfycbywXhhgL-HKpir9nrWZ2JXTy6mzy2a2aqJoUvss8z-LTQTmTg8SdHz4jnq5uJUCXq9lEQ/exec";
 
-    fetch(API_URL + "?action=getLeaderboard")
+    ffetch(API_URL + "?action=getLeaderboard")
       .then(response => {
         if (!response.ok) throw new Error('網路回應錯誤');
         return response.json();
@@ -46,7 +46,6 @@
         }
       })
       .catch(error => {
-        console.error("Error:", error);
         document.getElementById('lbContent').innerHTML = "資料讀取失敗，請確認 API 權限或稍後再試";
       });
   </script>
